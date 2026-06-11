@@ -1,0 +1,19 @@
+[Unit]
+Description=Meraki + Splunk Building Observability Agent
+After=network.target
+
+[Service]
+Type=simple
+# Replace <user> and <project-dir> with your values
+User=<user>
+WorkingDirectory=<project-dir>
+EnvironmentFile=<project-dir>/.env
+# Use the venv Python — NOT /usr/bin/python3 (dependencies will be missing)
+ExecStart=<project-dir>/.venv/bin/python3 <project-dir>/observability_agent.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

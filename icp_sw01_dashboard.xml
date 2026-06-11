@@ -1,0 +1,409 @@
+<dashboard version="1.1" theme="dark">
+  <label>ICP-SW01 Network Switch Monitor</label>
+  <description>Meraki MS355-48X2 | Serial: Q2DY-GJ53-PCYT | ICP Building | 56 Ports | 6 Active Devices</description>
+
+  <!-- ROW 1: Key Stats -->
+  <row>
+    <panel>
+      <single>
+        <title>Connected Ports</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | stats dc(portId) as total_ports count(eval(status="Connected")) as connected
+            | eval display=connected." / ".total_ports
+            | table display
+          </query>
+          <earliest>-15m</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorMode">block</option>
+        <option name="useColors">1</option>
+        <option name="rangeColors">["0xDC4E41","0xF8BE34","0x53A051"]</option>
+        <option name="rangeValues">[1,4]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Total Traffic (Kbps)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | stats sum(trafficInKbps.total) as total_traffic
+            | eval total_traffic=round(total_traffic,1)
+            | table total_traffic
+          </query>
+          <earliest>-15m</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="unit">Kbps</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Total PoE Usage (Wh)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | stats sum(powerUsageInWh) as total_poe
+            | eval total_poe=round(total_poe,1)
+            | table total_poe
+          </query>
+          <earliest>-15m</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="unit">Wh</option>
+        <option name="colorMode">block</option>
+        <option name="useColors">1</option>
+        <option name="rangeColors">["0x53A051","0xF8BE34","0xDC4E41"]</option>
+        <option name="rangeValues">[800,1200]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Switch Uplink Traffic (Kbps)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" portId="48"
+            | sort - _time
+            | head 1
+            | eval display=round('trafficInKbps.total',1)
+            | table display
+          </query>
+          <earliest>-15m</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="unit">Kbps</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Switch Firmware</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | sort - _time
+            | head 1
+            | head 1 | table device_name model serial
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+  </row>
+
+  <!-- ROW 2: Connected Device Summary Table -->
+  <row>
+    <panel>
+      <table>
+        <title>ICP-SW01 - Active Port Inventory</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" status="Connected"
+            | sort - _time
+            | dedup portId
+            | eval device_name=coalesce('lldp.systemName','cdp.platform',"Unknown")
+            | eval traffic_kbps=round('trafficInKbps.total',1)
+            | eval sent_kbps=round('trafficInKbps.sent',1)
+            | eval recv_kbps=round('trafficInKbps.recv',1)
+            | eval poe_wh=round(powerUsageInWh,1)
+            | eval poe_status=if('poe.isAllocated'="true","✓ PoE","—")
+            | eval clients=clientCount
+            | eval port_type=case(
+                portId=="48","🔗 Uplink/Router",
+                portId=="43" OR portId=="45","📡 Access Point",
+                portId=="1" OR portId=="2" OR portId=="13","📷 Camera",
+                true(),"Device")
+            | table portId device_name port_type speed traffic_kbps sent_kbps recv_kbps poe_wh poe_status clients
+            | rename portId as Port device_name as "Device" port_type as "Type" speed as "Speed"
+                     traffic_kbps as "Total (Kbps)" sent_kbps as "TX (Kbps)" recv_kbps as "RX (Kbps)"
+                     poe_wh as "PoE (Wh)" poe_status as "PoE" clients as "Clients"
+            | sort Port
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="dataOverlayMode">heatmap</option>
+        <option name="rowNumbers">false</option>
+        <option name="wrap">false</option>
+      </table>
+    </panel>
+  </row>
+
+  <!-- ROW 3: Traffic Time Series -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Traffic Per Device Over Time (Kbps)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" status="Connected"
+            | eval device_name=case(
+                portId=="1","P1: Corner Camera",
+                portId=="2","P2: Table Camera",
+                portId=="13","P13: Bookshelf Camera",
+                portId=="43","P43: Kitchen WAP",
+                portId=="45","P45: Intern WAP",
+                portId=="48","P48: MX105 Uplink",
+                true(),"Port ".portId)
+            | timechart span=10m avg(trafficInKbps.total) by device_name
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Traffic (Kbps)</option>
+        <option name="charting.seriesColors">[0x3498DB,0x2ECC71,0x9B59B6,0xE74C3C,0xF39C12,0x1ABC9C]</option>
+        <option name="height">300</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- ROW 4: TX vs RX + PoE -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Uplink TX vs RX (Port 48 - MX105)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" portId="48"
+            | timechart span=10m avg(trafficInKbps.sent) as "TX (Kbps)" avg(trafficInKbps.recv) as "RX (Kbps)"
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleY.text">Kbps</option>
+        <option name="charting.seriesColors">[0xE74C3C,0x3498DB]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - PoE Consumption by Device (Wh)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" status="Connected"
+            | eval device_name=case(
+                portId=="1","P1: Corner Camera",
+                portId=="2","P2: Table Camera",
+                portId=="13","P13: Bookshelf Camera",
+                portId=="43","P43: Kitchen WAP",
+                portId=="45","P45: Intern WAP",
+                portId=="48","P48: MX105",
+                true(),"Port ".portId)
+            | where powerUsageInWh > 0
+            | timechart span=1h avg(powerUsageInWh) by device_name
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleY.text">Power (Wh)</option>
+        <option name="charting.seriesColors">[0x3498DB,0x2ECC71,0x9B59B6,0xE74C3C,0xF39C12]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- ROW 5: WAP Traffic + Camera Traffic -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Access Point Traffic Comparison (Kbps)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            (portId="43" OR portId="45")
+            | eval device_name=case(
+                portId=="43","Kitchen WAP (MR57)",
+                portId=="45","Intern Desk WAP (MR57)")
+            | timechart span=10m avg(trafficInKbps.total) by device_name
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleY.text">Kbps</option>
+        <option name="charting.seriesColors">[0xE74C3C,0xF39C12]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Camera Traffic Comparison (Kbps)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            (portId="1" OR portId="2" OR portId="13")
+            | eval device_name=case(
+                portId=="1","Corner Of Office (MV12W)",
+                portId=="2","Table Test (MV12W)",
+                portId=="13","Bookshelf (MV12W)")
+            | timechart span=10m avg(trafficInKbps.total) by device_name
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleY.text">Kbps</option>
+        <option name="charting.seriesColors">[0x3498DB,0x2ECC71,0x9B59B6]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- ROW 6: Port Status Heatmap + Power History -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Total Switch Traffic Over Time (Kbps)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | timechart span=10m sum(trafficInKbps.total) as "Total Traffic (Kbps)"
+                                  sum(trafficInKbps.sent) as "Total TX (Kbps)"
+                                  sum(trafficInKbps.recv) as "Total RX (Kbps)"
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleY.text">Kbps</option>
+        <option name="charting.seriesColors">[0x1ABC9C,0xE74C3C,0x3498DB]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Total PoE Power Over Time (Wh)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | timechart span=1h sum(powerUsageInWh) as "Total PoE (Wh)"
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleY.text">Power (Wh)</option>
+        <option name="charting.seriesColors">[0xF39C12]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- ROW 7: Anomaly + Port Error Detection -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP-SW01 - Traffic Anomaly Detection (Last 7 Days)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" portId="48"
+            | timechart span=1h avg(trafficInKbps.total) as uplink_traffic
+            | anomalydetection uplink_traffic action=annotate
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.seriesColors">[0x3498DB,0xDC4E41]</option>
+        <option name="height">260</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <table>
+        <title>ICP-SW01 - Port Error Log</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT"
+            | where errors!="[]" AND errors!=""
+            | eval device_name=coalesce('lldp.systemName','cdp.platform',"Port ".portId)
+            | eval time=strftime(_time,"%Y-%m-%d %H:%M:%S")
+            | table time portId device_name errors warnings status
+            | rename time as Time portId as Port device_name as Device
+                     errors as Errors warnings as Warnings status as Status
+            | sort - Time
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rowNumbers">true</option>
+        <option name="wrap">true</option>
+        <option name="count">10</option>
+      </table>
+    </panel>
+  </row>
+
+  <!-- ROW 8: Network Topology Summary -->
+  <row>
+    <panel>
+      <table>
+        <title>ICP-SW01 - Network Device Topology</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:switch_port_status" serial="Q2DY-GJ53-PCYT" status="Connected"
+            | sort - _time
+            | dedup portId
+            | eval device_name=coalesce('lldp.systemName','cdp.platform',"Unknown")
+            | eval device_desc=coalesce('lldp.systemDescription','cdp.platform',"—")
+            | eval mgmt_ip=coalesce('lldp.managementAddress','cdp.address',"—")
+            | eval mac=coalesce('lldp.chassisId','cdp.deviceId',"—")
+            | eval traffic_kbps=round('trafficInKbps.total',1)
+            | eval poe_wh=round(powerUsageInWh,1)
+            | eval uplink=if(portId=="48","✓ Uplink","—")
+            | table portId device_name device_desc mgmt_ip mac speed traffic_kbps poe_wh uplink
+            | rename portId as Port device_name as "Device Name" device_desc as "Description"
+                     mgmt_ip as "Mgmt IP" mac as "MAC/Chassis ID" speed as Speed
+                     traffic_kbps as "Traffic (Kbps)" poe_wh as "PoE (Wh)" uplink as "Uplink"
+            | sort Port
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rowNumbers">false</option>
+        <option name="wrap">false</option>
+      </table>
+    </panel>
+  </row>
+
+</dashboard>

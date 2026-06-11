@@ -1,0 +1,303 @@
+<dashboard version="1.1" theme="dark">
+  <label>ICP Building - Environmental Sensor Monitor</label>
+  <description>ICP CRUX (MT10 Temp/Humidity: Q3CA-7SBV-ZCTA) | ICP SIDE DOOR (MT20 Door: Q3CC-WK69-K7TM) | Thresholds: Temp &gt; 24°C | Humidity &gt; 70%</description>
+
+  <row>
+    <panel>
+      <single>
+        <title>ICP CRUX - Current Temperature</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="temperature"
+            | sort - _time
+            | head 1
+            | eval display=round(temperature.celsius,1)." °C"
+            | table display
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53A051","0xF8BE34","0xDC4E41"]</option>
+        <option name="rangeValues">[20,24]</option>
+        <option name="useColors">1</option>
+        <option name="unit">°C</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>ICP CRUX - Current Humidity</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="humidity"
+            | sort - _time
+            | head 1
+            | eval display=round(humidity.relativePercentage,1)."%"
+            | table display
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53A051","0xF8BE34","0xDC4E41"]</option>
+        <option name="rangeValues">[50,70]</option>
+        <option name="useColors">1</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>ICP SIDE DOOR - Current Status</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CC-WK69-K7TM" metric="door"
+            | sort - _time
+            | head 1
+            | eval status=if(door.open="true","OPEN","CLOSED")
+            | table status
+          </query>
+          <earliest>-1h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53A051","0xDC4E41"]</option>
+        <option name="useColors">0</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>ICP CRUX - Battery Level</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="battery"
+            | sort - _time
+            | head 1
+            | eval display=round(battery.percentage,0)."%"
+            | table display
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0xDC4E41","0xF8BE34","0x53A051"]</option>
+        <option name="rangeValues">[20,50]</option>
+        <option name="useColors">1</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+  </row>
+
+  <!-- Temperature Time Series -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP CRUX - Temperature Over Time (°C) | Threshold: 24°C</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="temperature"
+            | timechart span=30m avg(temperature.celsius) as "Avg Temp (°C)" max(temperature.celsius) as "Max Temp (°C)"
+            | eval threshold=24
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Temperature (°C)</option>
+        <option name="charting.axisY.minimumNumber">15</option>
+        <option name="charting.axisY.maximumNumber">40</option>
+        <option name="charting.seriesColors">[0x3498DB,0xE74C3C,0xF39C12]</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.fieldColors">{"threshold": 0xDC4E41}</option>
+        <option name="charting.seriesMapping">{"threshold": {"type": "line", "dashStyle": "dash"}}</option>
+        <option name="height">300</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Humidity Time Series -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP CRUX - Humidity Over Time (%) | Threshold: 70%</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="humidity"
+            | timechart span=30m avg(humidity.relativePercentage) as "Avg Humidity (%)" max(humidity.relativePercentage) as "Max Humidity (%)"
+            | eval threshold=70
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Relative Humidity (%)</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.axisY.maximumNumber">100</option>
+        <option name="charting.seriesColors">[0x1ABC9C,0x27AE60,0xF39C12]</option>
+        <option name="charting.fieldColors">{"threshold": 0xDC4E41}</option>
+        <option name="charting.seriesMapping">{"threshold": {"type": "line", "dashStyle": "dash"}}</option>
+        <option name="height">300</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Temperature + Humidity Combined -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP CRUX - Temperature vs Humidity Correlation (Last 24 Hours)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" (metric="temperature" OR metric="humidity")
+            | eval temp=if(metric="temperature",temperature.celsius,null())
+            | eval hum=if(metric="humidity",humidity.relativePercentage,null())
+            | timechart span=15m avg(temp) as "Temperature (°C)" avg(hum) as "Humidity (%)"
+          </query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.axisY.minimumNumber">0</option>
+        <option name="charting.seriesColors">[0xE74C3C,0x3498DB]</option>
+        <option name="height">280</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>ICP SIDE DOOR - Open Events (Last 7 Days)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CC-WK69-K7TM" metric="door"
+            | eval door_state=if(door.open="true",1,0)
+            | timechart span=1h sum(door_state) as "Door Open Events"
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.seriesColors">[0x9B59B6]</option>
+        <option name="height">280</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Anomaly Detection -->
+  <row>
+    <panel>
+      <chart>
+        <title>ICP CRUX - Temperature Anomaly Detection (Last 7 Days)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="temperature"
+            | timechart span=1h avg(temperature.celsius) as temperature
+            | anomalydetection temperature action=annotate
+            | eval is_anomaly=if(isnotnull(anomaly_score),temperature,null())
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.seriesColors">[0x3498DB,0xDC4E41]</option>
+        <option name="height">280</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>ICP CRUX - Temperature Forecast (Next 24 Hours)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" metric="temperature"
+            | timechart span=1h avg(temperature.celsius) as temperature
+            | predict temperature future_timespan=24 algorithm=LLP5
+            | rename temperature as "Actual" prediction(temperature) as "Forecast" upper95(prediction(temperature)) as "Upper 95%" lower95(prediction(temperature)) as "Lower 95%"
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.chart.nullValueMode">connect</option>
+        <option name="charting.legend.placement">bottom</option>
+        <option name="charting.seriesColors">[0x3498DB,0xF39C12,0xBDC3C7,0xBDC3C7]</option>
+        <option name="height">280</option>
+        <option name="drilldown">none</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Stats Summary Table -->
+  <row>
+    <panel>
+      <table>
+        <title>ICP CRUX - Sensor Statistics Summary (Last 7 Days)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA" (metric="temperature" OR metric="humidity")
+            | eval value=coalesce(temperature.celsius, humidity.relativePercentage)
+            | stats count avg(value) as avg min(value) as min max(value) as max stdev(value) as stdev by metric
+            | eval avg=round(avg,2)
+            | eval min=round(min,2)
+            | eval max=round(max,2)
+            | eval stdev=round(stdev,2)
+            | eval threshold=if(metric="temperature","24°C",if(metric="humidity","70%","N/A"))
+            | eval alert=if(metric="temperature" AND max>24,"⚠ MAX EXCEEDED",if(metric="humidity" AND max>70,"⚠ MAX EXCEEDED","✓ OK"))
+            | rename metric as Metric avg as "Avg" min as "Min" max as "Max" stdev as "Std Dev" threshold as "Threshold" alert as "Status"
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="dataOverlayMode">heatmap</option>
+        <option name="rowNumbers">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>ICP CRUX - Threshold Breach Events (Temp &gt; 24°C or Humidity &gt; 70%)</title>
+        <search>
+          <query>
+            index=main sourcetype="meraki:sensorreadingshistory" serial="Q3CA-7SBV-ZCTA"
+            | eval value=coalesce(temperature.celsius, humidity.relativePercentage)
+            | eval breach=if(metric="temperature" AND temperature.celsius>24,"TEMP BREACH",if(metric="humidity" AND humidity.relativePercentage>70,"HUMIDITY BREACH",null()))
+            | where isnotnull(breach)
+            | eval time=strftime(_time,"%Y-%m-%d %H:%M:%S")
+            | table time metric value breach
+            | rename time as Time metric as Metric value as Value breach as "Alert Type"
+            | sort - Time
+          </query>
+          <earliest>-7d</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rowNumbers">true</option>
+        <option name="wrap">true</option>
+        <option name="count">10</option>
+      </table>
+    </panel>
+  </row>
+
+</dashboard>

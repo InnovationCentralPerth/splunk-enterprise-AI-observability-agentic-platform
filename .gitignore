@@ -1,0 +1,15 @@
+# Environment — never commit real credentials
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Splunk license file
+*.License
+*.lic
+
+# OS
+.DS_Store
